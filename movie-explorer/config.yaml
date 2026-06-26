@@ -1,0 +1,25 @@
+data:
+  # Path to raw movie dataset (relative to movie-explorer/ or absolute)
+  raw_movies_csv: ../movies.csv
+  # Path to cleaned movie dataset (relative to movie-explorer/ or absolute)
+  movies_csv: ../movies_clean.csv
+
+llm:
+  provider: huggingface
+  model: HuggingFaceTB/SmolLM2-360M-Instruct
+  max_new_tokens: 512
+  temperature: 0.1
+
+rag:
+  embedding_model: all-MiniLM-L6-v2
+  batch_size: 64
+
+recommendations:
+  top_n: 5
+  rag_top_k_multiplier: 4
+  rag_top_k_min: 20
+
+logging:
+  directory: logs
+  max_bytes: 5000000
+  backup_count: 3

@@ -1,0 +1,13 @@
+pandas>=3.0
+matplotlib>=3.11
+ipykernel>=7.3
+streamlit>=1.58
+scikit-learn>=1.9
+altair>=6.0
+sentence-transformers>=3.0
+transformers>=4.45
+accelerate>=0.34
+huggingface_hub>=0.25
+torchvision>=0.27
+pyyaml>=6.0
+pycountry>=24.6

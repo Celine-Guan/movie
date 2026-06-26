@@ -1,0 +1,21 @@
+# Virtual environments
+env/
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+
+# OS / IDE
+.DS_Store
+.ipynb_checkpoints/
+
+# Logs
+*.log
+movie-explorer/logs/
