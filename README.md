@@ -19,9 +19,31 @@ An optional recommendation chatbot is powered by **RAG** (Retrieval-Augmented Ge
 
 ### Requirements
 
-- **Python** 3.11+ ([pyenv](https://github.com/pyenv/pyenv) users: `.python-version` is included)
-- **Internet** on first run (downloads open models from Hugging Face Hub — no API token required, the model will be download automatically on the first chat request.)
+- **Python** 3.11+ ([pyenv](https://github.com/pyenv/pyenv) users: `movie-explorer/.python-version` is included)
+- **Internet** on first run (downloads open models from Hugging Face Hub — no API token required; models download automatically on first chat request)
 
+### Installing Python 3.11+
+
+Check your version:
+
+```bash
+python3 --version
+```
+
+If the version is below 3.11, install Python 3.11+ first:
+
+| Platform | Command |
+|----------|---------|
+| **macOS** (Homebrew) | `brew install python@3.11` |
+| **macOS / Linux** (pyenv) | `pyenv install 3.11 && pyenv local 3.11` |
+| **Ubuntu / Debian** | `sudo apt update && sudo apt install python3.11 python3.11-venv` |
+| **Windows** | `winget install Python.Python.3.11` or [python.org/downloads](https://www.python.org/downloads/) |
+
+Then verify:
+
+```bash
+python3.11 --version   # should print 3.11.x or newer
+```
 
 ### Quick start (recommended)
 
@@ -29,23 +51,24 @@ From the repo root:
 
 ```bash
 git clone https://github.com/Celine-Guan/movie.git
-cd movie-explorer
+cd movie
 
-python3 setup.py
+python3 setup.py        # or: python3.11 setup.py
 source .venv/bin/activate      # macOS / Linux
 # .venv\Scripts\activate       # Windows
 
+cd movie-explorer
 streamlit run app.py
 ```
 
-`setup.py` creates `.venv`, installs pinned dependencies, and builds `movies_clean.csv` from `../movies.csv`. The app also re-runs preprocessing automatically if the raw file is newer than the clean file.
+`setup.py` creates `.venv`, installs dependencies, and builds `movies_clean.csv` from `movies.csv`. The app also re-runs preprocessing automatically if the raw file is newer than the clean file.
 
 ### Manual setup (alternative)
 
 ```bash
 cd movie-explorer
-python3.11 -m venv .venv
-source .venv/bin/activate
+python3.11 -m venv ../.venv
+source ../.venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 streamlit run app.py
@@ -126,7 +149,8 @@ tail -f logs/errors.log
 
 | Issue | Fix |
 |-------|-----|
-| `ModuleNotFoundError` | Run `python3 scripts/setup.py` or activate `.venv` and `pip install -r requirements.txt` |
+| Python version too old | Install Python 3.11+ (see above), then run `python3.11 setup.py` |
+| `ModuleNotFoundError` | Run `python3 setup.py` from the repo root, or activate `.venv` and `pip install -r movie-explorer/requirements.txt` |
 | Missing data file | Put `movies.csv` in the parent folder, or edit `config.yaml` |
 | Slow first chat | LLM model downloads once (~360 MB); CPU inference can take 10–30 s |
 | LLM fallback only | Check network, disk space, and `logs/errors.log`; try another open model in `config.yaml` |
