@@ -28,7 +28,7 @@ An optional recommendation chatbot is powered by **RAG** (Retrieval-Augmented Ge
 From the repo root:
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Celine-Guan/movie.git
 cd movie-explorer
 
 python3 scripts/setup.py
