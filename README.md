@@ -31,14 +31,14 @@ From the repo root:
 git clone https://github.com/Celine-Guan/movie.git
 cd movie-explorer
 
-python3 scripts/setup.py
+python3 setup.py
 source .venv/bin/activate      # macOS / Linux
 # .venv\Scripts\activate       # Windows
 
 streamlit run app.py
 ```
 
-`scripts/setup.py` creates `.venv`, installs pinned dependencies, and builds `movies_clean.csv` from `../movies.csv`. The app also re-runs preprocessing automatically if the raw file is newer than the clean file.
+`setup.py` creates `.venv`, installs pinned dependencies, and builds `movies_clean.csv` from `../movies.csv`. The app also re-runs preprocessing automatically if the raw file is newer than the clean file.
 
 ### Manual setup (alternative)
 
