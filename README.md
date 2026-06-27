@@ -22,29 +22,6 @@ An optional recommendation chatbot is powered by **RAG** (Retrieval-Augmented Ge
 - **Python** 3.11+ ([pyenv](https://github.com/pyenv/pyenv) users: `movie-explorer/.python-version` is included)
 - **Internet** on first run (downloads open models from Hugging Face Hub — no API token required; models download automatically on first chat request)
 
-### Installing Python 3.11+
-
-Check your version:
-
-```bash
-python3 --version
-```
-
-If the version is below 3.11, install Python 3.11+ first:
-
-| Platform | Command |
-|----------|---------|
-| **macOS** (Homebrew) | `brew install python@3.11` |
-| **macOS / Linux** (pyenv) | `pyenv install 3.11 && pyenv local 3.11` |
-| **Ubuntu / Debian** | `sudo apt update && sudo apt install python3.11 python3.11-venv` |
-| **Windows** | `winget install Python.Python.3.11` or [python.org/downloads](https://www.python.org/downloads/) |
-
-Then verify:
-
-```bash
-python3.11 --version   # should print 3.11.x or newer
-```
-
 ### Quick start (recommended)
 
 From the repo root:
