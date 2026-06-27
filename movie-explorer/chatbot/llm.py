@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from chatbot.formatting import format_genres, overview_text
 from chatbot.schemas import UserQuery
 from config_loader import get_llm_config
 from logging_config import get_logger
@@ -13,7 +14,7 @@ DEFAULT_MODEL = _llm["model"]
 LLM_MAX_NEW_TOKENS = _llm["max_new_tokens"]
 LLM_TEMPERATURE = _llm["temperature"]
 
-_generator = None
+_generator = None # holds the loaded model in memory 
 
 
 class HfLocalGenerator:
@@ -31,8 +32,6 @@ class HfLocalGenerator:
         logger.info("Loaded Hugging Face model %s on %s", model_name, self.device)
 
     def generate(self, prompt: str, max_new_tokens: int, temperature: float) -> str:
-        import torch
-
         messages = [{"role": "user", "content": prompt}]
         chat_input = self.tokenizer.apply_chat_template(
             messages,
@@ -48,6 +47,8 @@ class HfLocalGenerator:
         if temperature > 0:
             generation_kwargs["temperature"] = temperature
 
+        import torch
+
         with torch.no_grad():
             outputs = self.model.generate(**inputs, **generation_kwargs)
 
@@ -56,7 +57,8 @@ class HfLocalGenerator:
 
 
 def _get_generator(model: str = DEFAULT_MODEL) -> HfLocalGenerator:
-    global _generator
+    """This is a lazy singleton: the model is loaded only on the first chat request, then reused."""
+    global _generator #  the assignment updates the shared module variable
     if _generator is None or _generator.model_name != model:
         _generator = HfLocalGenerator(model)
     return _generator
@@ -85,15 +87,39 @@ def _format_candidate(row: pd.Series, rank: int) -> str:
         if pd.notna(row["Release_Date"])
         else "Unknown"
     )
-    genres = ", ".join(row["Genre"]) if row["Genre"] else "Unknown"
-    overview = row["Overview"] if isinstance(row["Overview"], str) else ""
-    overview = overview[:240] + ("..." if len(overview) > 240 else "")
+    genres = format_genres(row["Genre"])
+    overview = overview_text(row["Overview"], limit=240)
     return (
         f"{rank}. {row['Title']} ({release_year}) | "
         f"Rating: {row['Vote_Average']} | Popularity: {row['Popularity']} | "
         f"Genres: {genres} | Overview: {overview}"
     )
 
+
+# def build_prompt(query: UserQuery, movies: pd.DataFrame) -> str:
+#     criteria = [f"Genres: {', '.join(query.genres)}"]
+#     if query.year_ranges:
+#         criteria.append(f"Release periods: {', '.join(query.year_ranges)}")
+#     if query.min_vote_average:
+#         criteria.append(f"Minimum rating: {query.min_vote_average}")
+#     if query.min_popularity:
+#         criteria.append(f"Minimum popularity: {query.min_popularity}")
+#     if query.semantic_text():
+#         criteria.append(f"User description: {query.semantic_text()}")
+
+#     candidate_lines = [_format_candidate(row, index + 1) for index, (_, row) in enumerate(movies.iterrows())]
+#     return f"""You are a helpful movie recommendation assistant.
+# Recommend ONLY movies from the candidate list below.
+# Do not invent titles.
+# Return 3 to 5 picks as a short friendly chat response.
+# For each pick, explain briefly why it matches the user's criteria using the overview/genres.
+
+# User criteria:
+# - {"\n".join(criteria)}
+
+# Candidate movies:
+# {"\n".join(candidate_lines)}
+# """
 
 def build_prompt(query: UserQuery, movies: pd.DataFrame) -> str:
     criteria = [f"Genres: {', '.join(query.genres)}"]
@@ -107,6 +133,8 @@ def build_prompt(query: UserQuery, movies: pd.DataFrame) -> str:
         criteria.append(f"User description: {query.semantic_text()}")
 
     candidate_lines = [_format_candidate(row, index + 1) for index, (_, row) in enumerate(movies.iterrows())]
+    criteria_text = "\n".join(criteria)
+    candidates_text = "\n".join(candidate_lines)
     return f"""You are a helpful movie recommendation assistant.
 Recommend ONLY movies from the candidate list below.
 Do not invent titles.
@@ -114,10 +142,10 @@ Return 3 to 5 picks as a short friendly chat response.
 For each pick, explain briefly why it matches the user's criteria using the overview/genres.
 
 User criteria:
-- {chr(10).join(criteria)}
+- {criteria_text}
 
 Candidate movies:
-{chr(10).join(candidate_lines)}
+{candidates_text}
 """
 
 
@@ -158,9 +186,8 @@ def fallback_response(query: UserQuery, movies: pd.DataFrame) -> str:
         "",
     ]
     for _, row in movies.iterrows():
-        genres = ", ".join(row["Genre"]) if row["Genre"] else "Unknown"
-        overview = row["Overview"] if isinstance(row["Overview"], str) else ""
-        reason = overview[:180] + "..." if len(overview) > 180 else overview
+        genres = format_genres(row["Genre"])
+        reason = overview_text(row["Overview"], limit=180)
         lines.append(f"**{row['Title']}** ({genres}) — rating {row['Vote_Average']}, popularity {row['Popularity']:.0f}.")
         lines.append(reason)
         lines.append("")

@@ -1,12 +1,13 @@
 """Preprocess raw movie CSV into a cleaned dataset."""
 
-import logging
 from pathlib import Path
 
 import pandas as pd
 import pycountry
 
-logger = logging.getLogger(__name__)
+from logging_config import get_logger
+
+logger = get_logger("preprocess")
 
 
 def clean_genres(genre) -> list[str]:
@@ -37,8 +38,7 @@ def preprocess_movies(raw_path: Path, output_path: Path | None = None) -> pd.Dat
     df["Release_Date"] = pd.to_datetime(df["Release_Date"], errors="coerce")
     df["Release_Date"] = df["Release_Date"].fillna(0)
 
-    df["Overview"] = df["Overview"].str.strip()
-    df["Overview"] = df["Overview"].fillna("")
+    df["Overview"] = df["Overview"].str.strip().fillna("")
 
     df["Genre"] = df["Genre"].apply(clean_genres)
     df["Language"] = df["Original_Language"].apply(code_to_language)

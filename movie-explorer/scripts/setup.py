@@ -38,8 +38,11 @@ def main() -> int:
     run([str(python), "-m", "pip", "install", "--upgrade", "pip"])
     run([str(python), "-m", "pip", "install", "-r", str(REQUIREMENTS)])
 
-    raw_csv = PROJECT_DIR.parent / "movies.csv"
-    clean_csv = PROJECT_DIR.parent / "movies_clean.csv"
+    sys.path.insert(0, str(PROJECT_DIR))
+    from config_loader import get_data_path, get_raw_data_path
+
+    raw_csv = get_raw_data_path()
+    clean_csv = get_data_path()
     if not raw_csv.exists():
         print(f"\nWarning: raw data not found at {raw_csv}")
         print("Place movies.csv there or update data paths in config.yaml.")

@@ -41,6 +41,12 @@ def filter_by_year_ranges(df: pd.DataFrame, selected_ranges: list[str]) -> pd.Da
     return df[mask]
 
 
+def filter_by_genres(df: pd.DataFrame, genres: list[str]) -> pd.DataFrame:
+    if not genres:
+        return df
+    return df[df["Genre"].apply(lambda movie_genres: any(genre in movie_genres for genre in genres))]
+
+
 def apply_metadata_filters(
     df: pd.DataFrame,
     genres: list[str],
@@ -51,7 +57,7 @@ def apply_metadata_filters(
     if not genres:
         return df.iloc[0:0]
 
-    filtered = df[df["Genre"].apply(lambda movie_genres: any(genre in movie_genres for genre in genres))]
+    filtered = filter_by_genres(df, genres)
 
     if year_ranges:
         filtered = filter_by_year_ranges(filtered, year_ranges)

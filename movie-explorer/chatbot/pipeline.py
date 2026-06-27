@@ -40,10 +40,10 @@ def recommend_movies(
             candidate_count=0,
         )
 
-    semantic_text = query.semantic_text()
+    semantic_text = query.semantic_text()  # user's description, stripped
     rag_scores = None
     if semantic_text:
-        candidate_indices = [df.index.get_loc(index) for index in candidates.index]
+        candidate_indices = candidates.index.tolist()
         rag_scores = retriever.search(
             semantic_text,
             candidate_indices,

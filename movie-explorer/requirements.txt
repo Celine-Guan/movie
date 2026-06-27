@@ -11,3 +11,4 @@ huggingface_hub>=0.25
 torchvision>=0.27
 pyyaml>=6.0
 pycountry>=24.6
+pytest>=8.0

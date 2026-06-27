@@ -10,11 +10,9 @@ class UserQuery:
     min_vote_average: float | None = None
     min_popularity: float | None = None
     description: str = ""
-    chat_message: str = ""
 
     def semantic_text(self) -> str:
-        parts = [self.description.strip(), self.chat_message.strip()]
-        return " ".join(part for part in parts if part)
+        return self.description.strip()
 
 
 @dataclass

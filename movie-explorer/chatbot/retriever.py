@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 
+from chatbot.formatting import format_genres, overview_text
+
 from config_loader import get_rag_config
 from logging_config import get_logger
 
@@ -13,9 +15,7 @@ EMBEDDING_BATCH_SIZE = _rag["batch_size"]
 
 
 def _movie_document(row: pd.Series) -> str:
-    genres = ", ".join(row["Genre"]) if row["Genre"] else "Unknown"
-    overview = row["Overview"] if isinstance(row["Overview"], str) else ""
-    return f"{row['Title']}. Genres: {genres}. {overview}"
+    return f"{row['Title']}. Genres: {format_genres(row['Genre'])}. {overview_text(row['Overview'])}"
 
 
 class MovieRetriever:
@@ -45,7 +45,7 @@ class MovieRetriever:
             normalize_embeddings=True,
         )[0]
         subset_embeddings = self.embeddings[candidate_indices]
-        scores = subset_embeddings @ query_embedding
+        scores = subset_embeddings @ query_embedding # cosine similarity via dot product
         top_positions = np.argsort(scores)[::-1][:top_k]
 
         result_index = [candidate_indices[position] for position in top_positions]

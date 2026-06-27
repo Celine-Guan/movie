@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 
@@ -23,27 +22,24 @@ def rank_candidates(
     ranked = candidates.copy()
     has_description = rag_scores is not None and not rag_scores.empty
 
+    ranked["_vote"] = _normalize(ranked["Vote_Average"].fillna(0))
+    ranked["_popularity"] = _normalize(ranked["Popularity"].fillna(0))
+    ranked["_year"] = _normalize(ranked["Release_Date"].dt.year.fillna(0))
+
     if has_description:
         ranked["_rag"] = rag_scores.reindex(ranked.index).fillna(0.0)
-        ranked["_vote"] = _normalize(ranked["Vote_Average"].fillna(0))
-        ranked["_popularity"] = _normalize(ranked["Popularity"].fillna(0))
-        ranked["_recency"] = _normalize(ranked["Release_Date"].dt.year.fillna(0))
         ranked["_final_score"] = (
             0.6 * ranked["_rag"]
             + 0.2 * ranked["_vote"]
             + 0.1 * ranked["_popularity"]
-            + 0.1 * ranked["_recency"]
+            + 0.1 * ranked["_year"]
         )
     else:
-        ranked["_vote"] = _normalize(ranked["Vote_Average"].fillna(0))
-        ranked["_popularity"] = _normalize(ranked["Popularity"].fillna(0))
-        ranked["_recency"] = _normalize(ranked["Release_Date"].dt.year.fillna(0))
         ranked["_final_score"] = (
-            0.4 * ranked["_vote"] + 0.3 * ranked["_popularity"] + 0.3 * ranked["_recency"]
+            0.4 * ranked["_vote"] + 0.3 * ranked["_popularity"] + 0.3 * ranked["_year"]
         )
 
     ranked = ranked.sort_values("_final_score", ascending=False).head(top_n)
     if has_description:
         ranked["Match_Score"] = ranked["_rag"].round(3)
-    ranked["Final_Score"] = ranked["_final_score"].round(3)
     return ranked.drop(columns=[col for col in ranked.columns if col.startswith("_")])

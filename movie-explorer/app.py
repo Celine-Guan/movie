@@ -2,11 +2,11 @@
 This script is used to visualise the movie data using Streamlit.
 This is a multimodal platform that allows users to explore the movie data and get recommendations.
 Users can have a global insight of release date, popularity, vote count, vote average, and genre.
-Users can search for a movie by title and genre, review the details of a movie, and get recommendations for similar movies.
+Users can search for a movie by title and genre, review the details of a movie, and get similar movies.
+Users can also get recommendations for a movie by describing the movie they want to watch.
 """
 
 from ast import literal_eval
-from pathlib import Path
 
 import altair as alt
 import pandas as pd
@@ -14,7 +14,8 @@ import streamlit as st
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from chatbot.filters import filter_by_year_ranges, get_year_options
+from chatbot.filters import filter_by_genres, filter_by_year_ranges, get_year_options
+from chatbot.formatting import format_genres
 from chatbot.llm import DEFAULT_MODEL, get_llm_status
 from chatbot.pipeline import recommend_movies
 from chatbot.retriever import MovieRetriever
@@ -60,7 +61,10 @@ def get_data_version() -> tuple[float, int, float, tuple[str, ...]]:
 def validate_dataframe(df: pd.DataFrame, context: str) -> None:
     missing = [column for column in REQUIRED_COLUMNS if column not in df.columns]
     if missing:
-        raise ValueError(f"{context}: missing columns {missing}. Clear Streamlit cache and reload.")
+        raise ValueError(
+            f"{context}: missing columns {missing}. "
+            "Re-run utils/preprocess.py or update movies.csv and restart the app."
+        )
     if df.empty and len(df.columns) == 0:
         raise ValueError(f"{context}: dataframe has no columns. Clear Streamlit cache and reload.")
 
@@ -69,13 +73,7 @@ def validate_dataframe(df: pd.DataFrame, context: str) -> None:
 def load_data(data_version: tuple[float, int, float, tuple[str, ...]]) -> pd.DataFrame:
     try:
         df = pd.read_csv(DATA_PATH)
-        missing = [column for column in REQUIRED_COLUMNS if column not in df.columns]
-        if missing:
-            raise ValueError(
-                f"movies_clean.csv is missing columns: {missing}. "
-                "Re-run utils/preprocess.py or update movies.csv and restart the app."
-            )
-
+        validate_dataframe(df, "movies_clean.csv")
         df = df.reset_index(drop=True)
         df["Release_Date"] = pd.to_datetime(df["Release_Date"], errors="coerce")
         df["Genre"] = df["Genre"].apply(
@@ -133,7 +131,7 @@ def render_movie_details(movie: pd.Series) -> None:
         release_date = movie["Release_Date"]
         release_label = release_date.strftime("%Y-%m-%d") if pd.notna(release_date) else "Unknown"
         st.write(f"**Release date:** {release_label}")
-        st.write(f"**Genres:** {', '.join(movie['Genre']) if movie['Genre'] else 'Unknown'}")
+        st.write(f"**Genres:** {format_genres(movie['Genre'])}")
         st.write(f"**Language:** {movie['Language']}")
         st.write(
             f"**Rating:** {movie['Vote_Average']} "
@@ -151,8 +149,7 @@ def render_recommendation_cards(movies: pd.DataFrame) -> None:
                 if pd.notna(movie["Poster_Url"]):
                     st.image(movie["Poster_Url"], width="stretch")
             with card_col2:
-                genres = ", ".join(movie["Genre"]) if movie["Genre"] else "Unknown"
-                st.write(f"**Genres:** {genres}")
+                st.write(f"**Genres:** {format_genres(movie['Genre'])}")
                 st.write(f"**Popularity:** {movie['Popularity']:.0f}")
                 if "Match_Score" in movie:
                     st.write(f"**Semantic match:** {movie['Match_Score']}")
@@ -233,14 +230,11 @@ def render_chatbot_tab(df: pd.DataFrame, all_genres: list[str], retriever: Movie
         if not genres:
             st.error("Please select at least one genre.")
         else:
-            st.session_state.chatbot_description = description
-            st.session_state.chatbot_min_rating = min_rating if min_rating > 0 else None
-            st.session_state.chatbot_min_popularity = min_popularity if min_popularity > 0 else None
             query = UserQuery(
                 genres=genres,
                 year_ranges=year_ranges,
-                min_vote_average=st.session_state.chatbot_min_rating,
-                min_popularity=st.session_state.chatbot_min_popularity,
+                min_vote_average=min_rating if min_rating > 0 else None,
+                min_popularity=min_popularity if min_popularity > 0 else None,
                 description=description,
             )
             user_message = description.strip() or f"Recommend {', '.join(genres)} movies."
@@ -248,7 +242,6 @@ def render_chatbot_tab(df: pd.DataFrame, all_genres: list[str], retriever: Movie
 
     for message in st.session_state.chat_messages:
         with st.chat_message(message["role"]):
-            # st.markdown(message["content"])
             if message["role"] == "assistant":
                 if not message.get("used_llm"):
                     st.caption(f"Ranked from {message.get('candidate_count', 0)} matching movies from movie.csv dataset.")
@@ -262,8 +255,6 @@ def render_explorer_tab(
     all_genres: list[str],
     similarity_matrix,
 ) -> None:
-    validate_dataframe(df, "Explorer")
-
     st.subheader("Search")
     filter_col1, filter_col2, filter_col3 = st.columns(3)
     with filter_col1:
@@ -291,36 +282,18 @@ def render_explorer_tab(
     if language_query:
         filtered = filtered[filtered["Language"].isin(language_query)]
     if selected_genres:
-        filtered = filtered[
-            filtered["Genre"].apply(
-                lambda genres: any(genre in genres for genre in selected_genres)
-            )
-        ]
+        filtered = filter_by_genres(filtered, selected_genres)
     if min_rating > 0:
         filtered = filtered[filtered["Vote_Average"] >= min_rating]
 
-    st.caption("Click a row to view movie details and recommendations.")
-
-    missing_columns = [column for column in EXPLORER_DISPLAY_COLUMNS if column not in filtered.columns]
-    if missing_columns:
-        logger.error(
-            "Explorer missing columns: %s | available: %s",
-            missing_columns,
-            list(filtered.columns),
-        )
-        st.error(
-            "The movie dataset is missing expected columns. "
-            "Use the Streamlit menu (⋮) → **Clear cache**, then reload the page."
-        )
-        st.code(f"Missing: {missing_columns}\nAvailable: {list(filtered.columns)}")
+    if filtered.empty:
+        st.warning("No movies found matching your filters. Try changing your search criteria.")
         return
 
-    results_table = filtered[list(EXPLORER_DISPLAY_COLUMNS)].head(100).copy()
-    if results_table.empty:
-        st.info("No movies found matching your search criteria.")
-    results_table["Genre"] = results_table["Genre"].apply(
-        lambda genres: ", ".join(genres) if genres else "Unknown"
-    )
+    st.caption("Click a row to view movie details and recommendations.")
+
+    results_table = filtered[list(EXPLORER_DISPLAY_COLUMNS)].head(100).copy().reset_index(drop=True)
+    results_table["Genre"] = results_table["Genre"].apply(format_genres)
 
     selection = st.dataframe(
         results_table,
@@ -330,25 +303,32 @@ def render_explorer_tab(
         key="search_results",
     )
 
-    if selection.selection.rows and not results_table.empty:
-        st.session_state.selected_movie = results_table.iloc[selection.selection.rows[0]]["Title"]
-    elif not results_table.empty and "selected_movie" not in st.session_state:
+    if selection.selection.rows:
+        row_idx = selection.selection.rows[0]
+        if 0 <= row_idx < len(results_table):
+            st.session_state.selected_movie = results_table.iloc[row_idx]["Title"]
+    elif "selected_movie" not in st.session_state:
         st.session_state.selected_movie = results_table.iloc[0]["Title"]
 
     selected_movie = st.session_state.get("selected_movie")
+    movie_row = (
+        df.loc[df["Title"] == selected_movie].iloc[0]
+        if selected_movie and selected_movie in df["Title"].values
+        else None
+    )
 
     st.subheader("Selected movie details")
-    if selected_movie and selected_movie in df["Title"].values:
-        movie = df.loc[df["Title"] == selected_movie].iloc[0]
-        render_movie_details(movie)
+    if movie_row is not None:
+        render_movie_details(movie_row)
     else:
         st.info("Select a movie from the search results.")
 
     st.subheader("Similar movies")
-    if selected_movie and selected_movie in df["Title"].values:
-        similar_movies = get_similar_movies(df, similarity_matrix, selected_movie)
-    else:
-        similar_movies = pd.DataFrame()
+    similar_movies = (
+        get_similar_movies(df, similarity_matrix, selected_movie)
+        if movie_row is not None
+        else pd.DataFrame()
+    )
 
     if similar_movies.empty:
         st.info("No similar movies found for this title.")
@@ -402,7 +382,6 @@ def main() -> None:
 
         data_version = get_data_version()
         df = load_data(data_version)
-        validate_dataframe(df, "App data load")
         retriever = load_retriever(data_version)
         similarity_matrix = build_similarity_matrix(data_version)
         all_genres = sorted({genre for genres in df["Genre"] for genre in genres})

@@ -35,36 +35,20 @@ def setup_logging() -> logging.Logger:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    app_handler = RotatingFileHandler(
-        log_dir / "app.log",
-        maxBytes=log_cfg["max_bytes"],
-        backupCount=log_cfg["backup_count"],
-        encoding="utf-8",
-    )
-    app_handler.setLevel(logging.INFO)
-    app_handler.setFormatter(formatter)
-
-    error_handler = RotatingFileHandler(
-        log_dir / "errors.log",
-        maxBytes=log_cfg["max_bytes"],
-        backupCount=log_cfg["backup_count"] + 2,
-        encoding="utf-8",
-    )
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(formatter)
-
-    debug_handler = RotatingFileHandler(
-        log_dir / "debug.log",
-        maxBytes=log_cfg["max_bytes"],
-        backupCount=log_cfg["backup_count"],
-        encoding="utf-8",
-    )
-    debug_handler.setLevel(logging.DEBUG)
-    debug_handler.setFormatter(formatter)
-
-    logger.addHandler(app_handler)
-    logger.addHandler(error_handler)
-    logger.addHandler(debug_handler)
+    for filename, level in (
+        ("app.log", logging.INFO),
+        ("errors.log", logging.ERROR),
+        ("debug.log", logging.DEBUG),
+    ):
+        handler = RotatingFileHandler(
+            log_dir / filename,
+            maxBytes=log_cfg["max_bytes"],
+            backupCount=log_cfg["backup_count"] + (2 if filename == "errors.log" else 0),
+            encoding="utf-8",
+        )
+        handler.setLevel(level)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     _CONFIGURED = True
     logger.info("Logging initialized. Log directory: %s", log_dir)
